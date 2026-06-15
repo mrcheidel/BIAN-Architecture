@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIAN + PCI DSS Banking Reference Architecture</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f4; --bg3: #eeede8;
+    --text: #1a1a18; --text2: #5f5e5a; --text3: #888780;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --info-bg: #e6f1fb; --info-text: #0c447c; --info-border: #185fa5;
+    --success-bg: #eaf3de; --success-text: #27500a; --success-border: #3b6d11;
+    --danger-bg: #fcebeb; --danger-text: #791f1f; --danger-border: #a32d2d;
+    --warn-bg: #faeeda; --warn-text: #633806; --warn-border: #854f0b;
+    --purple-bg: #eeedfe; --purple-text: #3c3489;
+    --teal-bg: #e0f5f5; --teal-text: #0a4f4f; --teal-border: #1a7a7a;
+    --r: 8px; --r2: 10px;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 14px; color: var(--text);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #27271f; --bg3: #2e2e26;
+      --text: #e8e6de; --text2: #b4b2a9; --text3: #888780;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --info-bg: #042c53; --info-text: #b5d4f4; --info-border: #378add;
+      --success-bg: #173404; --success-text: #c0dd97; --success-border: #639922;
+      --danger-bg: #501313; --danger-text: #f7c1c1; --danger-border: #e24b4a;
+      --warn-bg: #412402; --warn-text: #fac775; --warn-border: #ef9f27;
+      --purple-bg: #26215c; --purple-text: #cecbf6;
+      --teal-bg: #042c2c; --teal-text: #9fe0e0; --teal-border: #1a7a7a;
+    }
+  }
+
+  body { background: var(--bg); padding: 16px; max-width: 1000px; margin: 0 auto; }
+
+  h1 { font-size: 16px; font-weight: 500; color: var(--text); }
+
+  .badge-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .badge {
+    font-size: 11px; font-weight: 500; padding: 3px 10px;
+    border-radius: 20px; border: 0.5px solid transparent;
+  }
+  .badge-pci { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-border); }
+  .badge-bian { background: var(--info-bg); color: var(--info-text); border-color: var(--info-border); }
+  .badge-iso  { background: var(--success-bg); color: var(--success-text); border-color: var(--success-border); }
+
+  .arch-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 2px; border-bottom: 0.5px solid var(--border); margin-bottom: 14px; flex-wrap: wrap; }
+  .tab {
+    padding: 6px 14px; font-size: 12px; font-weight: 500;
+    border: none; background: transparent; color: var(--text2);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    border-radius: 6px 6px 0 0; transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text); background: var(--bg2); }
+  .tab.active { color: var(--info-text); border-bottom-color: var(--info-border); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* LAYERS */
+  .arch-layer { border: 0.5px solid var(--border); border-radius: var(--r2); overflow: hidden; margin-bottom: 8px; }
+  .layer-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .layer-header i { font-size: 15px; }
+  .layer-header .layer-hint { margin-left: auto; font-size: 10px; opacity: 0.65; font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+  .lh-journey { background: #e8f0fe; color: #1a3c7a; } @media (prefers-color-scheme:dark) { .lh-journey { background: #0d2040; color: #aac4f4; } }
+  .lh-chan  { background: #e6f1fb; color: #0c447c; } @media (prefers-color-scheme:dark) { .lh-chan  { background: #042c53; color: #b5d4f4; } }
+  .lh-api   { background: #e1f5ee; color: #085041; } @media (prefers-color-scheme:dark) { .lh-api   { background: #04342c; color: #9fe1cb; } }
+  .lh-svc   { background: #eeedfe; color: #3c3489; } @media (prefers-color-scheme:dark) { .lh-svc   { background: #26215c; color: #cecbf6; } }
+  .lh-data  { background: #faeeda; color: #633806; } @media (prefers-color-scheme:dark) { .lh-data  { background: #412402; color: #fac775; } }
+  .lh-sec   { background: #fcebeb; color: #791f1f; } @media (prefers-color-scheme:dark) { .lh-sec   { background: #501313; color: #f7c1c1; } }
+  .lh-infra { background: #f1efe8; color: #444441; } @media (prefers-color-scheme:dark) { .lh-infra { background: #2c2c2a; color: #d3d1c7; } }
+
+  .layer-body { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 10px; background: var(--bg); }
+
+  .service-card {
+    flex: 1 1 130px; min-width: 120px;
+    border: 0.5px solid var(--border); border-radius: var(--r);
+    padding: 8px 10px; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: var(--bg);
+  }
+  .service-card:hover { border-color: var(--info-border); background: var(--bg2); }
+  .service-card.selected { border-color: var(--info-border); background: var(--info-bg); }
+
+  .sc-name   { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .sc-domain { font-size: 10px; color: var(--text2); }
+  .sc-tag {
+    display: inline-block; margin-top: 4px;
+    font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 500;
+  }
+  .sc-pci { background: var(--danger-bg); color: var(--danger-text); }
+  .sc-std { background: var(--success-bg); color: var(--success-text); }
+  .sc-journey { background: var(--teal-bg); color: var(--teal-text); }
+
+  /* DETAIL PANEL */
+  .detail-panel {
+    margin-top: 10px; border: 0.5px solid var(--info-border);
+    border-radius: var(--r2); padding: 12px 14px;
+    background: var(--bg2); display: none;
+  }
+  .detail-panel.visible { display: block; }
+  .detail-title {
+    font-size: 14px; font-weight: 500; color: var(--text);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  @media (max-width: 520px) { .detail-grid { grid-template-columns: 1fr; } }
+  .detail-section h4 {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text2); margin-bottom: 5px;
+  }
+  .detail-section ul { list-style: none; padding: 0; }
+  .detail-section ul li {
+    font-size: 12px; color: var(--text); padding: 2px 0 2px 12px;
+    position: relative; line-height: 1.45;
+  }
+  .detail-section ul li::before { content: "·"; position: absolute; left: 2px; color: var(--text3); }
+
+  /* REQUIREMENTS */
+  .req-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+  .req-card { border: 0.5px solid var(--border); border-radius: var(--r2); overflow: hidden; }
+  .req-card-header { padding: 8px 12px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 8px; border-bottom: 0.5px solid var(--border); }
+  .req-card-body { padding: 8px 12px; background: var(--bg); }
+  .req-item { display: flex; align-items: flex-start; gap: 7px; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
+  .req-item:last-child { border-bottom: none; }
+  .req-id { font-size: 10px; font-weight: 500; min-width: 56px; padding: 2px 5px; border-radius: 5px; text-align: center; flex-shrink: 0; }
+  .req-id.fr  { background: var(--info-bg); color: var(--info-text); }
+  .req-id.pci { background: var(--danger-bg); color: var(--danger-text); }
+  .req-id.nfr { background: var(--success-bg); color: var(--success-text); }
+  .req-text { color: var(--text); line-height: 1.4; flex: 1; }
+  .req-priority { font-size: 10px; font-weight: 500; min-width: 42px; text-align: right; color: var(--text3); }
+
+  /* NFR TABLE */
+  .nfr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .nfr-table th { text-align: left; padding: 6px 10px; font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 0.5px solid var(--border); background: var(--bg2); }
+  .nfr-table td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: top; }
+  .nfr-table tr:last-child td { border-bottom: none; }
+  .nfr-cat { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+  .nfr-metric { font-family: 'Courier New', monospace; font-size: 11px; color: var(--info-text); }
+
+  /* PCI */
+  .pci-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+  .pci-card { border: 0.5px solid var(--border); border-radius: var(--r2); overflow: hidden; }
+  .pci-card-header { padding: 8px 12px; background: var(--danger-bg); border-bottom: 0.5px solid var(--border); }
+  .pci-req-num { font-size: 11px; font-weight: 500; color: var(--danger-text); }
+  .pci-req-title { font-size: 12px; font-weight: 500; color: var(--text); margin-top: 2px; }
+  .pci-card-body { padding: 8px 12px; background: var(--bg); }
+  .pci-control { display: flex; align-items: flex-start; gap: 7px; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
+  .pci-control:last-child { border-bottom: none; }
+  .pci-status { font-size: 10px; font-weight: 500; min-width: 54px; padding: 2px 5px; border-radius: 5px; text-align: center; flex-shrink: 0; }
+  .pci-status.mandatory { background: var(--danger-bg); color: var(--danger-text); }
+  .pci-status.critical  { background: var(--warn-bg);   color: var(--warn-text); }
+  .pci-status.standard  { background: var(--success-bg); color: var(--success-text); }
+  .pci-control span:last-child { color: var(--text); line-height: 1.4; }
+
+  .alert-box { margin-bottom: 10px; padding: 10px 12px; border: 0.5px solid var(--danger-border); border-radius: var(--r); background: var(--danger-bg); font-size: 12px; color: var(--danger-text); }
+
+  /* JOURNEY FLOW */
+  .journey-flow { display: flex; gap: 0; flex-wrap: wrap; margin-bottom: 8px; }
+  .journey-step {
+    flex: 1 1 80px; min-width: 80px;
+    padding: 6px 8px; text-align: center; font-size: 10px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase; position: relative;
+    background: var(--teal-bg); color: var(--teal-text); border: 0.5px solid var(--teal-border);
+    cursor: default;
+  }
+  .journey-step:not(:last-child)::after {
+    content: '›'; position: absolute; right: -6px; top: 50%; transform: translateY(-50%);
+    font-size: 14px; z-index: 1; color: var(--teal-border); background: var(--bg); padding: 0 1px;
+  }
+  .journey-step:first-child { border-radius: 6px 0 0 6px; }
+  .journey-step:last-child  { border-radius: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+
+<div class="arch-header">
+  <div>
+    <h1>BIAN Banking Reference Architecture</h1>
+    <div class="badge-row">
+      <span class="badge badge-pci">PCI DSS v4.0</span>
+      <span class="badge badge-bian">BIAN v12</span>
+      <span class="badge badge-iso">ISO 27001</span>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('arch',this)">Architecture</button>
+  <button class="tab" onclick="showTab('journey',this)">Customer Journey</button>
+  <button class="tab" onclick="showTab('fr',this)">Functional Req.</button>
+  <button class="tab" onclick="showTab('nfr',this)">NFR</button>
+  <button class="tab" onclick="showTab('pci',this)">PCI DSS</button>
+</div>
+
+<!-- ═══ TAB: ARCHITECTURE ═══ -->
+<div id="tab-arch" class="panel active">
+
+  <div class="arch-layer">
+    <div class="layer-header lh-chan">
+      <i class="ti ti-device-mobile"></i> Channel &amp; Digital Experience Layer
+      <span class="layer-hint">BIAN: Customer Engagement</span>
+    </div>
+    <div class="layer-body">
+      <div class="service-card" onclick="showDetail(this,'branch')"><div class="sc-name">Branch / ATM</div><div class="sc-domain">Branch Network</div><span class="sc-tag sc-pci">PCI Req 9</span></div>
+      <div class="service-card" onclick="showDetail(this,'mobile')"><div class="sc-name">Mobile Banking</div><div class="sc-domain">Electronic Banking</div><span class="sc-tag sc-pci">PCI Req 6/8</span></div>
+      <div class="service-card" onclick="showDetail(this,'web')"><div class="sc-name">Web Portal</div><div class="sc-domain">Digital Banking</div><span class="sc-tag sc-pci">PCI Req 6/8</span></div>
+      <div class="service-card" onclick="showDetail(this,'pos')"><div class="sc-name">POS / Terminal</div><div class="sc-domain">Point of Sale</div><span class="sc-tag sc-pci">PCI Req 9/12</span></div>
+      <div class="service-card" onclick="showDetail(this,'openbanking')"><div class="sc-name">Open Banking</div><div class="sc-domain">Third Party Access</div><span class="sc-tag sc-std">PSD2 / OB</span></div>
+    </div>
+  </div>
+
+  <div class="arch-layer">
+    <div class="layer-header lh-api">
+      <i class="ti ti-tournament"></i> Integration &amp; API Gateway Layer
+      <span class="layer-hint">BIAN: Service Landscape Integration</span>
+    </div>
+    <div class="layer-body">
+      <div class="service-card" onclick="showDetail(this,'apigw')"><div class="sc-name">API Gateway</div><div class="sc-domain">Rate limit · mTLS · OAuth2</div><span class="sc-tag sc-pci">PCI Req 1/6</span></div>
+      <div class="service-card" onclick="showDetail(this,'iam')"><div class="sc-name">IAM / CIAM</div><div class="sc-domain">Identity &amp; Access Mgmt</div><span class="sc-tag sc-pci">PCI Req 7/8</span></div>
+      <div class="service-card" onclick="showDetail(this,'esb')"><div class="sc-name">Event Mesh / ESB</div><div class="sc-domain">Messaging Backbone</div><span class="sc-tag sc-std">ISO 20022</span></div>
+      <div class="service-card" onclick="showDetail(this,'waf')"><div class="sc-name">WAF / DDoS</div><div class="sc-domain">Perimeter Security</div><span class="sc-tag sc-pci">PCI Req 1/6</span></div>
+    </div>
+  </div>
+
+  <div class="arch-layer">
+    <div class="layer-header lh-svc">
+      <i class="ti ti-building-bank"></i> Core Banking Business Services (BIAN Service Domains)
+      <span class="layer-hint">BIAN v12 · Bounded Contexts</span>
+    </div>
+    <div class="layer-body">
+      <div class="service-card" onclick="showDetail(this,'payments')"><div class="sc-name">Payment Order</div><div class="sc-domain">BIAN: Payment Initiation</div><span class="sc-tag sc-pci">PCI Req 3/4</span></div>
+      <div class="service-card" onclick="showDetail(this,'cards')"><div class="sc-name">Card Management</div><div class="sc-domain">BIAN: Card Issuing</div><span class="sc-tag sc-pci">PCI Req 3/4</span></div>
+      <div class="service-card" onclick="showDetail(this,'accounts')"><div class="sc-name">Current Account</div><div class="sc-domain">BIAN: Demand Deposit</div><span class="sc-tag sc-std">IFRS 9</span></div>
+      <div class="service-card" onclick="showDetail(this,'loans')"><div class="sc-name">Loan Products</div><div class="sc-domain">BIAN: Consumer Loan</div><span class="sc-tag sc-std">Basel III</span></div>
+      <div class="service-card" onclick="showDetail(this,'savings')"><div class="sc-name">Savings Products</div><div class="sc-domain">BIAN: Savings Account</div><span class="sc-tag sc-std">IFRS 9</span></div>
+      <div class="service-card" onclick="showDetail(this,'wealth')"><div class="sc-name">Wealth Mgmt</div><div class="sc-domain">BIAN: Investment Portfolio</div><span class="sc-tag sc-std">MiFID II</span></div>
+      <div class="service-card" onclick="showDetail(this,'fraud')"><div class="sc-name">Fraud Detection</div><div class="sc-domain">BIAN: Fraud Model</div><span class="sc-tag sc-pci">PCI Req 10/11</span></div>
+      <div class="service-card" onclick="showDetail(this,'kyc')"><div class="sc-name">KYC / AML</div><div class="sc-domain">BIAN: Party Data Mgmt</div><span class="sc-tag sc-std">AMLD6</span></div>
+      <div class="service-card" onclick="showDetail(this,'notification')"><div class="sc-name">Notification Svc</div><div class="sc-domain">BIAN: Party Notification</div><span class="sc-tag sc-std">GDPR</span></div>
+      <div class="service-card" onclick="showDetail(this,'reporting')"><div class="sc-name">Regulatory Reporting</div><div class="sc-domain">BIAN: Reg Compliance</div><span class="sc-tag sc-pci">PCI Req 12</span></div>
+    </div>
+  </div>
+
+  <div class="arch-layer">
+    <div class="layer-header lh-journey">
+      <i class="ti ti-route"></i> Customer Journey Service Domains (BIAN v12)
+      <span class="layer-hint">Prospect · Advice · Onboard · Engage · Wealth · Saving · Lending</span>
+    </div>
+    <div class="layer-body">
+      <div class="service-card" onclick="showDetail(this,'prospect')"><div class="sc-name">Prospect Mgmt</div><div class="sc-domain">BIAN: Prospect Campaign</div><span class="sc-tag sc-journey">CRM</span></div>
+      <div class="service-card" onclick="showDetail(this,'advice')"><div class="sc-name">Financial Advice</div><div class="sc-domain">BIAN: Customer Advisory</div><span class="sc-tag sc-journey">MiFID II</span></div>
+      <div class="service-card" onclick="showDetail(this,'onboard')"><div class="sc-name">Onboarding</div><div class="sc-domain">BIAN: Party Lifecycle</div><span class="sc-tag sc-journey">KYC/AML</span></div>
+      <div class="service-card" onclick="showDetail(this,'engage')"><div class="sc-name">Customer Engagement</div><div class="sc-domain">BIAN: Customer Relationship</div><span class="sc-tag sc-journey">NPS</span></div>
+      <div class="service-card" onclick="showDetail(this,'wealthjourney')"><div class="sc-name">Wealth Journey</div><div class="sc-domain">BIAN: Investment Suitability</div><span class="sc-tag sc-journey">MiFID II</span></div>
+      <div class="service-card" onclick="showDetail(this,'savingjourney')"><div class="sc-name">Saving Journey</div><div class="sc-domain">BIAN: Savings Plan Mgmt</div><span class="sc-tag sc-journey">IFRS 9</span></div>
+      <div class="service-card" onclick="showDetail(this,'lendingjourney')"><div class="sc-name">Lending Journey</div><div class="sc-domain">BIAN: Credit Origination</div><span class="sc-tag sc-journey">Basel III</span></div>
+    </div>
+  </div>
+
+  <div class="arch-layer">
+    <div class="layer-header lh-data">
+      <i class="ti ti-database"></i> Data &amp; Persistence Layer
+      <span class="layer-hint">Encrypted at Rest · Tokenization · Masking</span>
+    </div>
+    <div class="layer-body">
+      <div class="service-card" onclick="showDetail(this,'core')"><div class="sc-name">Core Banking DB</div><div class="sc-domain">OLTP · TDE · Row-Level</div><span class="sc-tag sc-pci">PCI Req 3</span></div>
+      <div class="service-card" onclick="showDetail(this,'vault')"><div class="sc-name">HSM / Key Vault</div><div class="sc-domain">FIPS 140-2 Level 3</div><span class="sc-tag sc-pci">PCI Req 3/6</span></div>
+      <div class="service-card" onclick="showDetail(this,'tokenization')"><div class="sc-name">Tokenization Engine</div><div class="sc-domain">PAN → Token mapping</div><span class="sc-tag sc-pci">PCI Req 3</span></div>
+      <div class="service-card" onclick="showDetail(this,'datawarehouse')"><div class="sc-name">Data Warehouse / Lake</div><div class="sc-domain">Analytics · Masked PII</div><span class="sc-tag sc-std">GDPR Art.25</span></div>
+      <div class="service-card" onclick="showDetail(this,'cache')"><div class="sc-name">Distributed Cache</div><div class="sc-domain">Redis · TLS · Encrypted</div><span class="sc-tag sc-pci">PCI Req 4</span></div>
+    </div>
+  </div>
+
+  <div class="arch-layer">
+    <div class="layer-header lh-sec">
+      <i class="ti ti-shield-lock"></i> Cross-Cutting Security Layer (CDE Controls)
+      <span class="layer-hint">PCI DSS Cardholder Data Environment</span>
+    </div>
+    <div class="layer-body">
+      <div class="service-card" onclick="showDetail(this,'siem')"><div class="sc-name">SIEM / SOC</div><div class="sc-domain">Real-time monitoring</div><span class="sc-tag sc-pci">PCI Req 10/11</span></div>
+      <div class="service-card" onclick="showDetail(this,'pam')"><div class="sc-name">PAM / Privilege</div><div class="sc-domain">Privileged Access Mgmt</div><span class="sc-tag sc-pci">PCI Req 7/8</span></div>
+      <div class="service-card" onclick="showDetail(this,'dlp')"><div class="sc-name">DLP / CASB</div><div class="sc-domain">Data Loss Prevention</div><span class="sc-tag sc-pci">PCI Req 3/4</span></div>
+      <div class="service-card" onclick="showDetail(this,'vuln')"><div class="sc-name">Vuln. Management</div><div class="sc-domain">ASV · Pen Testing</div><span class="sc-tag sc-pci">PCI Req 6/11</span></div>
+      <div class="service-card" onclick="showDetail(this,'audit')"><div class="sc-name">Audit &amp; Compliance</div><div class="sc-domain">Log retention · QSA</div><span class="sc-tag sc-pci">PCI Req 10/12</span></div>
+    </div>
+  </div>
+
+  <div class="arch-layer">
+    <div class="layer-header lh-infra">
+      <i class="ti ti-server"></i> Infrastructure &amp; Platform (Hybrid Cloud)
+      <span class="layer-hint">Network Segmentation · Zero Trust</span>
+    </div>
+    <div class="layer-body">
+      <div class="service-card" onclick="showDetail(this,'k8s')"><div class="sc-name">Kubernetes / CaaS</div><div class="sc-domain">Container orchestration</div><span class="sc-tag sc-pci">PCI Req 2/6</span></div>
+      <div class="service-card" onclick="showDetail(this,'network')"><div class="sc-name">Network Segmentation</div><div class="sc-domain">VLANs · Firewall · IDS</div><span class="sc-tag sc-pci">PCI Req 1</span></div>
+      <div class="service-card" onclick="showDetail(this,'backup')"><div class="sc-name">Backup &amp; DR</div><div class="sc-domain">RTO 4h · RPO 15min</div><span class="sc-tag sc-std">DORA</span></div>
+      <div class="service-card" onclick="showDetail(this,'observability')"><div class="sc-name">Observability</div><div class="sc-domain">OTel · Tracing · Metrics</div><span class="sc-tag sc-std">ISO 27001</span></div>
+    </div>
+  </div>
+
+  <div id="detail-panel" class="detail-panel">
+    <div class="detail-title">
+      <i id="det-icon" class="ti ti-info-circle"></i>
+      <span id="det-name">–</span>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-section"><h4>BIAN Capabilities</h4><ul id="det-bian"></ul></div>
+      <div class="detail-section"><h4>PCI DSS Controls</h4><ul id="det-pci"></ul></div>
+      <div class="detail-section"><h4>Functional Requirements</h4><ul id="det-fr"></ul></div>
+      <div class="detail-section"><h4>NFR / SLA</h4><ul id="det-nfr"></ul></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB: CUSTOMER JOURNEY ═══ -->
+<div id="tab-journey" class="panel">
+
+  <div class="journey-flow">
+    <div class="journey-step">Prospect</div>
+    <div class="journey-step">Advice</div>
+    <div class="journey-step">Onboard</div>
+    <div class="journey-step">Engage</div>
+    <div class="journey-step">Wealth Mgmt</div>
+    <div class="journey-step">Saving</div>
+    <div class="journey-step">Lending</div>
+  </div>
+
+  <div class="req-grid">
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--teal-bg);color:var(--teal-text)"><i class="ti ti-user-search"></i> Prospect — BIAN Service Domains</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Prospect Campaign Management — orchestrates targeted outreach campaigns across digital and physical channels</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Proposition — defines and presents product offers tailored to prospect profiles and segments</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Party Data Management — captures and enriches prospect data with CRM and external bureau sources</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Lead / Opportunity Management — tracks prospect funnel, scoring and sales pipeline progression</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Segmentation — AI-driven segmentation by life stage, risk appetite and product propensity</span><span class="req-priority">Support</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--teal-bg);color:var(--teal-text)"><i class="ti ti-message-chatbot"></i> Advice — BIAN Service Domains</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Advisory — provides personalised financial guidance compliant with MiFID II suitability rules</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Investment Suitability — assesses risk tolerance, investment horizon and regulatory appropriateness</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Financial Planning — models scenarios (retirement, education, real estate) and simulates portfolio outcomes</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Product Portfolio Analysis — evaluates customer's existing holdings and recommends rebalancing actions</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Regulatory Compliance — records suitability assessments and advice trail for MiFID II audit purposes</span><span class="req-priority">Support</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--teal-bg);color:var(--teal-text)"><i class="ti ti-user-plus"></i> Onboard — BIAN Service Domains</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Party Lifecycle Management — manages the full customer onboarding workflow from application to activation</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Relationship Management — establishes the customer profile and relationship context in CRM</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Party Authentication — verifies identity via eIDAS, biometric liveness and document OCR</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Regulatory Compliance — performs KYC, AML screening and PEP/Sanctions checks at onboarding</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Agreement — captures digital consent, product T&amp;Cs, GDPR preferences and e-signatures</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Account Opening — provisions the first product (current account, savings, card) in core banking</span><span class="req-priority">Support</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--teal-bg);color:var(--teal-text)"><i class="ti ti-users"></i> Engage — BIAN Service Domains</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Relationship Management — manages ongoing relationship lifecycle, retention and churn prediction</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Offer — generates personalised next-best-action and cross-sell offers based on behaviour</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Party Notification — delivers contextual push, SMS and email communications with consent tracking</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Satisfaction Survey — collects NPS/CSAT feedback and routes issues to complaint management</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Channel Activity Analysis — aggregates cross-channel behaviour for 360° engagement insights</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Case Management — handles service requests, complaints and escalations end-to-end</span><span class="req-priority">Support</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--teal-bg);color:var(--teal-text)"><i class="ti ti-chart-line"></i> Wealth Management — BIAN Service Domains</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Investment Portfolio Management — manages discretionary and advisory portfolios with rebalancing automation</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Investment Suitability — continuous suitability monitoring against client profile changes and market events</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Securities Order — executes buy/sell orders on exchanges with best execution reporting (MiFID II RTS 27/28)</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">FX Transactions — manages multi-currency exposure, hedging and currency conversion for HNW clients</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Trust Services — administers trusts, fiduciary mandates and estate planning structures</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Tax Optimisation — provides tax-efficient structuring aligned with client jurisdiction (CRS/FATCA reporting)</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Asset Valuation — real-time and mark-to-market valuation of liquid and illiquid holdings</span><span class="req-priority">Support</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--teal-bg);color:var(--teal-text)"><i class="ti ti-piggy-bank"></i> Saving — BIAN Service Domains</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Savings Account — manages demand and term deposits with interest accrual, laddering and auto-renewal</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Savings Plan Management — creates goal-based saving plans (house, education, retirement) with progress tracking</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Deposit Product Portfolio — orchestrates product catalogue: instant access, fixed-term, notice accounts and ISAs</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Interest Rate Management — applies tiered rate models, promotional rates and regulatory floor/cap controls</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Customer Position — provides consolidated savings view across all deposit products in real time</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Financial Accounting — posts interest, fee and tax transactions to the general ledger (IFRS 9 / IAS 32)</span><span class="req-priority">Support</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--teal-bg);color:var(--teal-text)"><i class="ti ti-receipt"></i> Lending — BIAN Service Domains</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Credit Origination — orchestrates end-to-end digital loan application, decisioning and document collection</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Consumer Loan — manages personal loans lifecycle: disbursement, repayment schedule and prepayment</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Mortgage Loan — handles secured lending from valuation and underwriting to drawdown and redemption</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Credit Risk Models — ML-based PD/LGD/EAD scoring with Basel III capital calculations and model validation</span><span class="req-priority">Core</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Collateral Asset Administration — manages pledged assets, LTV monitoring and collateral release triggers</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Credit Facility — governs revolving credit lines, overdrafts and committed facilities with covenant tracking</span><span class="req-priority">Support</span></div>
+        <div class="req-item"><span class="req-id fr">BIAN</span><span class="req-text">Loan Collections — manages delinquency, early intervention, restructuring and recovery workflows</span><span class="req-priority">Support</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ TAB: FUNCTIONAL REQUIREMENTS ═══ -->
+<div id="tab-fr" class="panel">
+  <div class="req-grid">
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--info-bg);color:var(--info-text)"><i class="ti ti-credit-card"></i> Payment &amp; Card Management</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">FR-PAY-01</span><span class="req-text">SEPA Credit Transfer and Direct Debit processing in real time with confirmation &lt;2s</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-PAY-02</span><span class="req-text">Intelligent transaction routing across Visa, Mastercard, SWIFT and TARGET2 networks</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-PAY-03</span><span class="req-text">PAN tokenization with BIN-specific tokens per EMV Payment Tokenisation Specification</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-PAY-04</span><span class="req-text">Card lifecycle management: issuance, activation, blocking, renewal and cancellation</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id pci">PCI-3.4</span><span class="req-text">Never store sensitive authentication data (CVV, PIN) after authorisation in any format</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-PAY-05</span><span class="req-text">3DS2 (SCA) support per PSD2 for strong customer authentication on online transactions</span><span class="req-priority">CRITICAL</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--success-bg);color:var(--success-text)"><i class="ti ti-user-check"></i> Identity, Access &amp; Authentication</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">FR-IAM-01</span><span class="req-text">Mandatory MFA for CDE access and privileged administration systems</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-IAM-02</span><span class="req-text">RBAC + ABAC with least-privilege principle; quarterly access certification campaigns</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id pci">PCI-8.2</span><span class="req-text">Each user must have a unique ID; credential sharing is strictly prohibited under any circumstance</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-IAM-03</span><span class="req-text">LDAP/AD integration with bidirectional synchronisation and JIT provisioning</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-IAM-04</span><span class="req-text">Idle session timeout at 15 min in CDE; immediate revocation of compromised OAuth2 tokens</span><span class="req-priority">HIGH</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--danger-bg);color:var(--danger-text)"><i class="ti ti-shield-check"></i> Security &amp; Data Protection</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id pci">PCI-3.5</span><span class="req-text">AES-256 encryption for CHD at rest; minimum TLS 1.3 for data in transit across all environments</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-SEC-01</span><span class="req-text">Cryptographic key management via HSM FIPS 140-2 Level 3; mandatory annual rotation of KEK/DEK</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-SEC-02</span><span class="req-text">SIEM with real-time event correlation; automatic alerts on anomalous CHD access patterns</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-SEC-03</span><span class="req-text">Quarterly ASV scanning and annual CDE pen testing; critical vulnerability remediation &lt;30 days</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-SEC-04</span><span class="req-text">Active DLP on endpoints and perimeters for detection and blocking of PAN/CHD exfiltration</span><span class="req-priority">HIGH</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--warn-bg);color:var(--warn-text)"><i class="ti ti-chart-bar"></i> Fraud, AML &amp; Compliance</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">FR-AML-01</span><span class="req-text">Real-time ML fraud detection engine; per-transaction scoring in &lt;100ms</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-AML-02</span><span class="req-text">Screening against OFAC, EU Consolidated and UN lists with automated daily updates</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-AML-03</span><span class="req-text">Digital KYC with eIDAS, biometric verification and remote onboarding compliant with AMLD6</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-AML-04</span><span class="req-text">Automated regulatory reporting to financial intelligence units with full audit traceability</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-AML-05</span><span class="req-text">Digital evidence chain of custody compliant with national security framework (high level)</span><span class="req-priority">MEDIUM</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--bg2);color:var(--text2)"><i class="ti ti-api"></i> Integration &amp; APIs</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id fr">FR-INT-01</span><span class="req-text">RESTful APIs conformant to BIAN v12 BOM; OpenAPI 3.1; semantic versioning with 2-version backward compatibility</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-INT-02</span><span class="req-text">ISO 20022 native messaging for interbank payments; automatic MT→MX conversion in integration bus</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-INT-03</span><span class="req-text">Open Banking PSD2/RTS SCA: AISP, PISP, CBPII with certified sandbox and developer portal</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-INT-04</span><span class="req-text">Event-driven architecture with Kafka/Event Mesh; at-least-once guarantee with consumer idempotency</span><span class="req-priority">MEDIUM</span></div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-header" style="background:var(--bg2);color:var(--text2)"><i class="ti ti-file-analytics"></i> Audit &amp; Governance</div>
+      <div class="req-card-body">
+        <div class="req-item"><span class="req-id pci">PCI-10.2</span><span class="req-text">Logging of all CHD accesses, privilege changes, initialisations and failed authentications</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-AUD-01</span><span class="req-text">Minimum 12-month retention (3 online) with integrity guaranteed via HMAC signing</span><span class="req-priority">CRITICAL</span></div>
+        <div class="req-item"><span class="req-id fr">FR-AUD-02</span><span class="req-text">NTP synchronisation with authoritative source; UTC timestamps on all CDE audit events</span><span class="req-priority">HIGH</span></div>
+        <div class="req-item"><span class="req-id fr">FR-AUD-03</span><span class="req-text">Real-time compliance dashboard: PCI, ISO 27001 and ENS status with deviation alerts</span><span class="req-priority">MEDIUM</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ TAB: NFR ═══ -->
+<div id="tab-nfr" class="panel">
+  <table class="nfr-table">
+    <thead>
+      <tr>
+        <th style="width:90px">ID</th>
+        <th style="width:110px">Category</th>
+        <th>Requirement</th>
+        <th style="width:150px">Metric / Target</th>
+        <th style="width:90px">Standard</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="font-size:11px;font-weight:500">NFR-PERF-01</td><td><span class="nfr-cat" style="background:var(--info-bg);color:var(--info-text)">Performance</span></td><td>End-to-end payment latency</td><td><span class="nfr-metric">p99 &lt; 2s</span></td><td>SLA</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-PERF-02</td><td><span class="nfr-cat" style="background:var(--info-bg);color:var(--info-text)">Performance</span></td><td>Fraud scoring per transaction</td><td><span class="nfr-metric">p99 &lt; 100ms</span></td><td>Business</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-PERF-03</td><td><span class="nfr-cat" style="background:var(--info-bg);color:var(--info-text)">Performance</span></td><td>Peak hour throughput</td><td><span class="nfr-metric">≥ 5,000 TPS</span></td><td>Business</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-PERF-04</td><td><span class="nfr-cat" style="background:var(--info-bg);color:var(--info-text)">Performance</span></td><td>Public API response under normal conditions</td><td><span class="nfr-metric">p95 &lt; 300ms</span></td><td>PSD2 RTS</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-AVAIL-01</td><td><span class="nfr-cat" style="background:var(--success-bg);color:var(--success-text)">Availability</span></td><td>Critical payments system (24/7/365)</td><td><span class="nfr-metric">≥ 99.99% (52min/yr)</span></td><td>DORA</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-AVAIL-02</td><td><span class="nfr-cat" style="background:var(--success-bg);color:var(--success-text)">Availability</span></td><td>Digital channels (mobile/web)</td><td><span class="nfr-metric">≥ 99.95%</span></td><td>SLA</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-AVAIL-03</td><td><span class="nfr-cat" style="background:var(--success-bg);color:var(--success-text)">Availability</span></td><td>RTO on CDE component failure</td><td><span class="nfr-metric">RTO ≤ 4 hours</span></td><td>DORA</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-AVAIL-04</td><td><span class="nfr-cat" style="background:var(--success-bg);color:var(--success-text)">Availability</span></td><td>Recovery point on data loss</td><td><span class="nfr-metric">RPO ≤ 15 min</span></td><td>DORA</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-SEC-01</td><td><span class="nfr-cat" style="background:var(--danger-bg);color:var(--danger-text)">Security</span></td><td>Encryption at rest for CHD/SAD</td><td><span class="nfr-metric">AES-256 + HSM</span></td><td>PCI Req 3</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-SEC-02</td><td><span class="nfr-cat" style="background:var(--danger-bg);color:var(--danger-text)">Security</span></td><td>Minimum encryption protocol in transit</td><td><span class="nfr-metric">TLS 1.3</span></td><td>PCI Req 4</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-SEC-03</td><td><span class="nfr-cat" style="background:var(--danger-bg);color:var(--danger-text)">Security</span></td><td>Maximum incident detection time</td><td><span class="nfr-metric">MTTD ≤ 24h</span></td><td>PCI Req 10</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-SEC-04</td><td><span class="nfr-cat" style="background:var(--danger-bg);color:var(--danger-text)">Security</span></td><td>Incident response and containment time</td><td><span class="nfr-metric">MTTR ≤ 4h</span></td><td>DORA / ENS</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-SCAL-01</td><td><span class="nfr-cat" style="background:var(--warn-bg);color:var(--warn-text)">Scalability</span></td><td>Horizontal auto-scaling under load spikes</td><td><span class="nfr-metric">×3 capacity in &lt;5min</span></td><td>Business</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-SCAL-02</td><td><span class="nfr-cat" style="background:var(--warn-bg);color:var(--warn-text)">Scalability</span></td><td>Degradation at 150% nominal load</td><td><span class="nfr-metric">&lt; 20% latency increase</span></td><td>Business</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-MAINT-01</td><td><span class="nfr-cat" style="background:var(--bg3);color:var(--text2)">Maintainability</span></td><td>Test coverage across BIAN services</td><td><span class="nfr-metric">≥ 80% coverage</span></td><td>ISO 25010</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-MAINT-02</td><td><span class="nfr-cat" style="background:var(--bg3);color:var(--text2)">Maintainability</span></td><td>Critical security patches (CVSSv3 ≥ 9.0)</td><td><span class="nfr-metric">Deploy ≤ 30 days</span></td><td>PCI Req 6</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-PORT-01</td><td><span class="nfr-cat" style="background:var(--bg3);color:var(--text2)">Portability</span></td><td>Cloud vendor independence</td><td><span class="nfr-metric">CNCF standards</span></td><td>BIAN</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-COMP-01</td><td><span class="nfr-cat" style="background:var(--danger-bg);color:var(--danger-text)">Compliance</span></td><td>Audit log retention in CDE</td><td><span class="nfr-metric">12 months (3 online)</span></td><td>PCI Req 10.7</td></tr>
+      <tr><td style="font-size:11px;font-weight:500">NFR-COMP-02</td><td><span class="nfr-cat" style="background:var(--danger-bg);color:var(--danger-text)">Compliance</span></td><td>Prod/staging/dev environment separation in CDE</td><td><span class="nfr-metric">Isolated networks</span></td><td>PCI Req 6</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ TAB: PCI DSS ═══ -->
+<div id="tab-pci" class="panel">
+  <div class="alert-box"><i class="ti ti-alert-triangle"></i> <strong>PCI DSS v4.0.1</strong> — All 12 core requirements applicable to the CDE of this architecture. Standard last updated: March 2024.</div>
+  <div class="pci-grid">
+
+    <div class="pci-card">
+      <div class="pci-card-header"><div class="pci-req-num">Requirements 1 &amp; 2</div><div class="pci-req-title">Network security &amp; infrastructure</div></div>
+      <div class="pci-card-body">
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>NGFW segmenting the CDE from the corporate network and DMZ</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Prohibit direct remote access to CDE without encrypted VPN + MFA + PAM</span></div>
+        <div class="pci-control"><span class="pci-status critical">Critical</span><span>Disable unnecessary services, protocols and ports on all CDE systems</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Review firewall rules every 6 months; justify each rule with a change ticket</span></div>
+      </div>
+    </div>
+
+    <div class="pci-card">
+      <div class="pci-card-header"><div class="pci-req-num">Requirement 3</div><div class="pci-req-title">Protection of stored cardholder data</div></div>
+      <div class="pci-card-body">
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Never store CVV2, PIN or magnetic stripe data after authorisation</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>PAN stored only with truncation (last 4 digits visible) or irreversible tokenisation</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>AES-256 encryption for CHD at rest; keys in HSM FIPS 140-2 L3</span></div>
+        <div class="pci-control"><span class="pci-status critical">Critical</span><span>Minimum retention policy: purge CHD when no longer required for a legitimate business purpose</span></div>
+      </div>
+    </div>
+
+    <div class="pci-card">
+      <div class="pci-card-header"><div class="pci-req-num">Requirement 4</div><div class="pci-req-title">Encryption of CHD in transmission</div></div>
+      <div class="pci-card-body">
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>TLS 1.3 exclusively for CHD transmission; TLS 1.0/1.1 explicitly disabled</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Certificate validation with Certificate Transparency and mandatory OCSP stapling</span></div>
+        <div class="pci-control"><span class="pci-status critical">Critical</span><span>Prohibit sending unprotected PANs via messaging, email, chat or open channels</span></div>
+      </div>
+    </div>
+
+    <div class="pci-card">
+      <div class="pci-card-header"><div class="pci-req-num">Requirements 5 &amp; 6</div><div class="pci-req-title">Anti-malware &amp; secure development</div></div>
+      <div class="pci-card-body">
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Antivirus/EDR on all CDE systems; daily signature updates</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>SAST + DAST + SCA in CI/CD pipeline; block deployments with critical vulnerabilities</span></div>
+        <div class="pci-control"><span class="pci-status critical">Critical</span><span>OWASP Top 10 + SANS CWE Top 25 as minimum secure coding requirements</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Authorised software inventory (SBOM); block execution of unauthorised software</span></div>
+      </div>
+    </div>
+
+    <div class="pci-card">
+      <div class="pci-card-header"><div class="pci-req-num">Requirements 7 &amp; 8</div><div class="pci-req-title">Access control &amp; identity</div></div>
+      <div class="pci-card-body">
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Need-to-know: CHD access only when required by role; deny by default</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Mandatory MFA for remote access, administrator accounts and CDE systems</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Passwords: minimum 12 characters, complexity, rotation every 90 days, history of 12</span></div>
+        <div class="pci-control"><span class="pci-status critical">Critical</span><span>Disable accounts inactive &gt;90 days; certify privileged access quarterly</span></div>
+      </div>
+    </div>
+
+    <div class="pci-card">
+      <div class="pci-card-header"><div class="pci-req-num">Requirement 9</div><div class="pci-req-title">Physical security of the CDE</div></div>
+      <div class="pci-card-body">
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Physical access control to data centre with biometrics or smart card; entry log maintained</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Visitors escorted in CDE zones; access log retained for minimum 3 months</span></div>
+        <div class="pci-control"><span class="pci-status critical">Critical</span><span>Monthly anti-skimming inspection of all POS/ATM terminals in the bank's own network</span></div>
+        <div class="pci-control"><span class="pci-status standard">Standard</span><span>Secure media destruction for CHD-bearing assets: destruction certificate required</span></div>
+      </div>
+    </div>
+
+    <div class="pci-card">
+      <div class="pci-card-header"><div class="pci-req-num">Requirements 10 &amp; 11</div><div class="pci-req-title">Monitoring, logging &amp; testing</div></div>
+      <div class="pci-card-body">
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Centralised logging of all CHD accesses, configuration changes and security events</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>IDS/IPS at CDE perimeter and interior; real-time SOC alerts with SLA &lt;15min</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Weekly internal scanning; quarterly external ASV; annual pen test (web + network)</span></div>
+        <div class="pci-control"><span class="pci-status critical">Critical</span><span>FIM (File Integrity Monitoring) to detect unauthorised changes to critical CDE files</span></div>
+      </div>
+    </div>
+
+    <div class="pci-card">
+      <div class="pci-card-header"><div class="pci-req-num">Requirement 12</div><div class="pci-req-title">Security policies &amp; governance</div></div>
+      <div class="pci-card-body">
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Information security policy approved by senior management; mandatory annual review</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Annual security awareness programme for all personnel; completion records maintained</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Documented and tested incident response plan; annual CHD breach simulation exercise</span></div>
+        <div class="pci-control"><span class="pci-status critical">Critical</span><span>Third-party management: inventory of vendors with CHD access; signed PCI DSS agreements</span></div>
+        <div class="pci-control"><span class="pci-status mandatory">Mandatory</span><span>Annual documented risk assessment; designated PCI compliance officer (ISA or QSA)</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var details = {
+  branch: {
+    name:"Branch / ATM", icon:"ti-building",
+    bian:["Branch Location Operations","ATM Network Management","Cash Management","Customer Contact Management","In-Branch Customer Event"],
+    pci:["Req 9: Physical access control to ATM technical rooms","Req 9: Monthly anti-skimming inspection on ATMs","Req 9: Physical access log retained ≥3 months","Req 10: Log of all operations at terminal"],
+    fr:["Biometric control in ATM technical rooms","End-to-end P2PE encryption in PIN pad","Remote ATM fleet management (RMS)","Automated daily cash reconciliation"],
+    nfr:["ATM availability ≥ 99.95%","Out-of-service ATM MTTR ≤ 4h","ATM transaction p99 < 3s","Physical log retained ≥ 3 months"]
+  },
+  mobile: {
+    name:"Mobile Banking", icon:"ti-device-mobile",
+    bian:["Electronic Banking","Customer App Management","Party Notification","Session Management","Channel Activity Analysis"],
+    pci:["Req 6: Mandatory SAST/DAST on every release","Req 6: OWASP Mobile Top 10 in secure coding","Req 8: Mandatory MFA for account access","Req 4: TLS 1.3 on all API calls"],
+    fr:["Biometric authentication + 6-digit PIN","Encrypted push notifications via APNs/FCM","Root/jailbreak detection at runtime","3DS2 support for in-app purchases"],
+    nfr:["App crash rate < 0.1%","Initial load time < 2s","Availability ≥ 99.95%","SAST coverage ≥ 80%"]
+  },
+  web: {
+    name:"Web Portal", icon:"ti-browser",
+    bian:["Electronic Banking","Digital Channel Management","Customer Access Management","Web Content Management"],
+    pci:["Req 6: Mandatory WAF in front of portal","Req 6: Quarterly and per-release DAST","Req 8: MFA for sensitive operations","Req 4: HSTS and TLS 1.3; no unencrypted HTTP"],
+    fr:["SSO with OIDC and identity federation","Session expires after 15 min inactivity in CDE","Strict Content Security Policy (CSP)","WCAG 2.1 AA accessibility"],
+    nfr:["Time to First Byte < 400ms","Availability ≥ 99.95%","SSL certificate renewed 30 days in advance","Quarterly DAST scanning"]
+  },
+  pos: {
+    name:"POS / Terminal", icon:"ti-device-tablet",
+    bian:["Point of Sale Operations","Payment Terminal Management","Card Authorization","Merchant Relationship Mgmt"],
+    pci:["Req 9: Monthly terminal inventory and verification","Req 9: Anti-tamper seal on every terminal","Req 12: Anti-social-engineering training for staff","Req 4: P2PE from swipe/dip/tap to processor"],
+    fr:["EMV chip+PIN and contactless NFC support","P2PE encryption from the PIN pad","Tamper detection with automatic alert","End-of-day batch reconciliation"],
+    nfr:["Authorisation < 2s under normal conditions","Terminal availability ≥ 99.9%","Monthly physical inspection documented","Compromised terminal replacement < 4h"]
+  },
+  openbanking: {
+    name:"Open Banking", icon:"ti-api",
+    bian:["Open Banking API Exposure","Third Party Access Mgmt","Regulatory Compliance","Channel Activity Analysis"],
+    pci:["Req 1: Network segmentation for public APIs","Req 6: WAF and rate limiting on PSD2 endpoints","Req 8: OAuth2 PKCE for TPPs","Req 4: mTLS for bank-to-TPP communication"],
+    fr:["AISP, PISP and CBPII compliant with RTS SCA","Certified sandbox with synthetic data","Developer portal with OpenAPI 3.1 documentation","Real-time consent management and revocation"],
+    nfr:["PSD2 API availability ≥ 99.5% (regulatory requirement)","API latency p95 < 300ms","Sandbox uptime ≥ 99%","Per-TPP quota monitoring"]
+  },
+  apigw: {
+    name:"API Gateway", icon:"ti-tournament",
+    bian:["Service Landscape Integration","API Management","Open Banking Exposure","Channel Integration"],
+    pci:["Req 1: Integrated WAF with OWASP rules","Req 6: Per-client rate limiting and throttling","Req 4: TLS 1.3 termination at gateway","Req 10: Log of all requests with source IP"],
+    fr:["Centralised OAuth2/OIDC for all services","mTLS between internal microservices","Semantic API versioning; 2 versions in simultaneous support","Circuit breaker and retry with exponential backoff"],
+    nfr:["Gateway-added latency < 5ms","Configurable rate limit per client","Availability 99.99%","Throughput ≥ 50k RPS"]
+  },
+  iam: {
+    name:"IAM / CIAM", icon:"ti-user-shield",
+    bian:["Customer Identity Management","Party Authentication","Access Management","Entitlement Management"],
+    pci:["Req 7: RBAC + ABAC; deny by default","Req 8: Unique ID per user; mandatory MFA in CDE","Req 8: Idle session timeout at 15 min","Req 8: Disable accounts inactive >90 days"],
+    fr:["LDAP/AD integration with JIT provisioning","Automated quarterly access certification","Privileged identity management (integrated PAM)","Federated SSO with SAML 2.0 and OIDC"],
+    nfr:["Authentication latency p99 < 200ms","Availability ≥ 99.99%","Access review within ≤ 1 business day after departure","Provisioning SLA < 4h"]
+  },
+  esb: {
+    name:"Event Mesh / ESB", icon:"ti-topology-ring",
+    bian:["Service Messaging","Operational Gateway","Channel Integration","Business Process Mgmt"],
+    pci:["Req 4: Encryption of CHD-bearing messages in transit","Req 10: Log of all messages containing CHD","Req 2: Hardened broker configuration"],
+    fr:["Native ISO 20022; automatic MT→MX conversion","At-least-once guarantee with consumer idempotency","Dead Letter Queue with automatic alerts","Centralised schema registry with version control"],
+    nfr:["Delivery latency p99 < 50ms","Throughput ≥ 200k msg/s","Availability ≥ 99.99%","Per-topic configurable message retention"]
+  },
+  waf: {
+    name:"WAF / DDoS", icon:"ti-wall",
+    bian:["IT Security Management","Threat Assessment","Network Operations"],
+    pci:["Req 1: Mandatory WAF for all CDE web apps","Req 6: Rules updated in < 1h on new CVE","Req 11: Rule review and tuning after each pen test"],
+    fr:["OWASP Core Rule Set (CRS) kept current","Volumetric DDoS mitigation ≥ 500 Gbps","Bot management with device fingerprinting","Detection + blocking mode configurable per path"],
+    nfr:["Added latency < 2ms","False positive rate < 0.01%","Rule update < 1h on active threat","Availability ≥ 99.99%"]
+  },
+  payments: {
+    name:"Payment Order", icon:"ti-credit-card",
+    bian:["Payment Initiation","Payment Execution","Payment Order Processing","FX Transactions","Payment Rails Access"],
+    pci:["Req 3: PAN tokenisation before storage","Req 4: TLS 1.3 in transit to payment networks","Req 10: Full log of every transaction with timestamp","Req 3: Never store CVV2 or SAD"],
+    fr:["SEPA CT/DD in real time (SCTInst < 10s)","Routing across Visa/Mastercard/SWIFT/TARGET2","Native ISO 20022 in all messages","Guaranteed idempotency on retries"],
+    nfr:["E2E latency p99 < 2s","Throughput ≥ 5,000 TPS","Availability 99.99%","Error rate < 0.01%"]
+  },
+  cards: {
+    name:"Card Management", icon:"ti-credit-card",
+    bian:["Card Issuing","Card Authorization","Card Facility Management","Card Transaction Processing","Card Collections"],
+    pci:["Req 3: Never store CVV2/PIN/magnetic stripe data","Req 3: PAN truncation (last 4 digits visible)","Req 9: Card personalisation in physically secure environment","Req 4: PIN block encryption with AES/3DES"],
+    fr:["Instant virtual issuance and physical card in 5 business days","Real-time limit management per channel","3DS2 / EMV for e-commerce","Block/unblock by customer in < 2s"],
+    nfr:["Authorisation < 300ms","Fraud scoring < 100ms","Availability 99.999%","Correct authorisation rate ≥ 99.8%"]
+  },
+  accounts: {
+    name:"Current Account", icon:"ti-building-bank",
+    bian:["Demand Deposit Account","Current Account Management","Account Balance","Account Statement","Payment Facility"],
+    pci:["Req 3: Encryption of account data at rest","Req 10: Audit of every balance/statement access","Req 7: Account access only with business justification"],
+    fr:["Real-time available balance","On-demand PDF/CSV statements","Customer-configurable transaction alerts","Multi-currency support with automatic FX"],
+    nfr:["Balance query p99 < 200ms","Availability ≥ 99.99%","Accounting integrity: automated daily batch reconciliation","Statement retention ≥ 10 years (regulatory)"]
+  },
+  loans: {
+    name:"Loan Products", icon:"ti-coin",
+    bian:["Consumer Loan","Loan Origination","Credit Facility","Collateral Asset Admin","Credit Risk Models"],
+    pci:["Req 3: Encryption of credit scoring data","Req 10: Log of access to customer financial data","Req 7: Restricted access to scoring models"],
+    fr:["End-to-end digital origination in < 10 min","Credit scoring with ML models and external bureau","Early and partial repayment management","Automatic Basel III / IFRS 9 reporting"],
+    nfr:["Automated credit decision p95 < 30s","Availability ≥ 99.9%","Quarterly model backtesting","Decision audit trail for challenges (GDPR Art. 22)"]
+  },
+  savings: {
+    name:"Savings Products", icon:"ti-piggy-bank",
+    bian:["Savings Account","Savings Plan Management","Deposit Product Portfolio","Interest Rate Management","Customer Position"],
+    pci:["Req 3: Encryption of savings account data at rest","Req 10: Audit of every account access","Req 7: Access only with business role justification"],
+    fr:["Instant and term deposit products with auto-renewal","Goal-based saving plans with progress tracking","Tiered interest rate models with promotional pricing","Consolidated real-time savings view per customer"],
+    nfr:["Balance query p99 < 200ms","Availability ≥ 99.99%","Interest posting accuracy: zero tolerance","Statement retention ≥ 10 years (IFRS 9)"]
+  },
+  wealth: {
+    name:"Wealth Management", icon:"ti-chart-line",
+    bian:["Investment Portfolio Management","Investment Suitability","Securities Order","FX Transactions","Trust Services","Asset Valuation"],
+    pci:["Req 3: Encryption of investment account and portfolio data","Req 10: Full audit trail of portfolio transactions","Req 7: Role-based access to pricing and model data"],
+    fr:["Discretionary and advisory portfolio management","Real-time suitability monitoring per MiFID II","Best execution reporting (RTS 27/28)","CRS/FATCA tax reporting with multi-jurisdiction support"],
+    nfr:["Portfolio valuation latency p99 < 500ms","Availability ≥ 99.99%","Trade confirmation in < 1s","Regulatory reporting delivered on time, zero exceptions"]
+  },
+  fraud: {
+    name:"Fraud Detection", icon:"ti-shield",
+    bian:["Fraud Model","Fraud Evaluation","Transaction Authorization","Customer Behavior Analysis","Party Monitor"],
+    pci:["Req 10: Automatic correlation of suspicious events","Req 11: Real-time IDS/IPS fed by SIEM","Req 12: IRP with documented fraud playbook"],
+    fr:["Real-time ML scoring < 100ms per transaction","Configurable rules per channel and operation type","Push alerts and automatic customer block","Case management for fraud analysts"],
+    nfr:["False positive rate < 0.5%","Fraud recall ≥ 95%","Scoring latency p99 < 100ms","Monthly model retraining"]
+  },
+  kyc: {
+    name:"KYC / AML", icon:"ti-user-check",
+    bian:["Party Data Management","Customer Relationship Management","Party Authentication","Regulatory Compliance"],
+    pci:["Req 10: Log of all identity data queries","Req 3: Encryption of stored identity documents","Req 7: KYC data access only with authorised role"],
+    fr:["eIDAS substantial level for remote onboarding","Real-time document verification + facial biometrics","OFAC/EU/UN list screening with daily updates","Periodic high-risk customer review (EDD)"],
+    nfr:["Digital onboarding time ≤ 10 min","AML false positive rate < 2%","KYC document retention ≥ 10 years (AMLD6)","Screening list updates in < 24h"]
+  },
+  notification: {
+    name:"Notification Svc", icon:"ti-bell",
+    bian:["Party Notification","Customer Communication","Channel Activity Analysis","Alert Management"],
+    pci:["Req 4: Full PAN prohibited in notifications","Req 10: Log of all sent notifications","Req 6: Encrypted notification channel (APNs/FCM TLS)"],
+    fr:["Push, SMS, email and in-app on unified channel","Multi-language templates configurable by business","Customer-managed channel preferences","Delivery confirmation and open-rate metrics"],
+    nfr:["Critical notification delivery p99 < 5s","Availability ≥ 99.9%","GDPR opt-out processed in < 24h","Notification log retention ≥ 12 months"]
+  },
+  reporting: {
+    name:"Regulatory Reporting", icon:"ti-file-analytics",
+    bian:["Regulatory Compliance","Financial Accounting","Regulatory Reporting","Business Development"],
+    pci:["Req 12: Annual PCI compliance report (ROC/SAQ)","Req 10: Full traceability for QSA audit","Req 12: Updated inventory of all CDE components"],
+    fr:["Automated reporting to financial intelligence units","COREP/FINREP regulatory submissions","BCBS 239 risk data dashboards","Real-time regulatory compliance dashboard"],
+    nfr:["Regulatory reports delivered on time without exception","Data lineage from source to report","Report retention ≥ 10 years","Module availability ≥ 99.9%"]
+  },
+  prospect: {
+    name:"Prospect Management", icon:"ti-user-search",
+    bian:["Prospect Campaign Management","Customer Proposition","Party Data Management","Lead/Opportunity Management","Customer Segmentation"],
+    pci:["Req 7: Prospect data access restricted to authorised marketing roles","Req 10: Log all prospect data accesses","Req 3: Prospect PII encrypted at rest"],
+    fr:["CRM-integrated lead scoring and pipeline tracking","AI-driven segmentation by life stage and propensity","Omnichannel campaign orchestration (digital + branch)","Consent management per GDPR from first contact"],
+    nfr:["Campaign data refresh latency < 1h","Lead scoring p95 < 200ms","Availability ≥ 99.9%","GDPR consent audit trail retained ≥ 5 years"]
+  },
+  advice: {
+    name:"Financial Advice", icon:"ti-message-chatbot",
+    bian:["Customer Advisory","Investment Suitability","Financial Planning","Product Portfolio Analysis","Regulatory Compliance"],
+    pci:["Req 10: Audit trail of all advice sessions and suitability assessments","Req 7: Access to client financial models restricted by role","Req 3: Advice records encrypted at rest"],
+    fr:["MiFID II-compliant suitability questionnaire and assessment","Financial planning simulator (retirement, education, real estate)","Robo-advisory with human escalation capability","Digital advice trail with e-signature and archiving"],
+    nfr:["Suitability engine response p95 < 500ms","Availability ≥ 99.9%","Advice record retention ≥ 7 years (MiFID II)","Zero tolerance on regulatory audit exceptions"]
+  },
+  onboard: {
+    name:"Customer Onboarding", icon:"ti-user-plus",
+    bian:["Party Lifecycle Management","Customer Relationship Management","Party Authentication","Regulatory Compliance","Customer Agreement","Account Opening"],
+    pci:["Req 3: Identity documents encrypted at rest in CDE","Req 8: MFA enforced from first digital interaction","Req 10: Full log of onboarding workflow steps"],
+    fr:["eIDAS substantial-level identity verification with biometric liveness","Automated KYC/AML and PEP/Sanctions checks","Digital e-signature with legal validity","First product provisioned in core banking within 10 min"],
+    nfr:["End-to-end digital onboarding time ≤ 10 min","Identity verification p99 < 30s","Availability ≥ 99.95%","KYC documents retained ≥ 10 years (AMLD6)"]
+  },
+  engage: {
+    name:"Customer Engagement", icon:"ti-users",
+    bian:["Customer Relationship Management","Customer Offer","Party Notification","Customer Satisfaction Survey","Channel Activity Analysis","Customer Case Management"],
+    pci:["Req 4: No full PAN in engagement communications","Req 10: Log of personalised offer events and responses","Req 7: Customer data access restricted to engagement roles"],
+    fr:["Next-best-action engine with ML personalisation","Omnichannel engagement (app, web, branch, call centre)","NPS/CSAT collection with automated complaint routing","Churn prediction model with proactive retention triggers"],
+    nfr:["Offer personalisation latency p99 < 300ms","Notification delivery p99 < 5s","Availability ≥ 99.9%","Model retraining cycle ≤ monthly"]
+  },
+  wealthjourney: {
+    name:"Wealth Management Journey", icon:"ti-chart-candlestick",
+    bian:["Investment Portfolio Management","Investment Suitability","Securities Order","FX Transactions","Trust Services","Tax Optimisation","Asset Valuation"],
+    pci:["Req 3: Encryption of portfolio and transaction data at rest","Req 10: Full audit trail of all investment transactions","Req 7: Role-based access to pricing, models and client data"],
+    fr:["Discretionary and advisory portfolio management with auto-rebalancing","MiFID II continuous suitability monitoring","Best execution with RTS 27/28 reporting","CRS/FATCA reporting and multi-jurisdiction tax structuring"],
+    nfr:["Portfolio valuation p99 < 500ms","Trade confirmation < 1s","Availability ≥ 99.99%","Regulatory reporting zero exceptions"]
+  },
+  savingjourney: {
+    name:"Saving Journey", icon:"ti-piggy-bank",
+    bian:["Savings Account","Savings Plan Management","Deposit Product Portfolio","Interest Rate Management","Customer Position","Financial Accounting"],
+    pci:["Req 3: Encryption of savings account data at rest","Req 10: Audit of every savings account access","Req 7: Savings data access controlled by role"],
+    fr:["Goal-based saving plans with milestone tracking","Automated round-up and sweep rules","Tiered rate engine with promotional pricing","Consolidated savings dashboard across all deposit products"],
+    nfr:["Balance query p99 < 200ms","Interest posting accuracy: zero tolerance","Availability ≥ 99.99%","Statement retention ≥ 10 years"]
+  },
+  lendingjourney: {
+    name:"Lending Journey", icon:"ti-receipt",
+    bian:["Credit Origination","Consumer Loan","Mortgage Loan","Credit Risk Models","Collateral Asset Administration","Credit Facility","Loan Collections"],
+    pci:["Req 3: Encryption of credit application and scoring data","Req 10: Audit log of all loan decisions","Req 7: Restricted access to scoring models and credit data"],
+    fr:["End-to-end digital loan origination in < 10 min","ML-based credit scoring with external bureau integration","Collateral LTV monitoring with automated alerts","Early delinquency detection and restructuring workflows"],
+    nfr:["Automated credit decision p95 < 30s","Availability ≥ 99.9%","Basel III capital calculation updated daily","Decision audit trail retained ≥ 7 years"]
+  },
+  core: {
+    name:"Core Banking DB", icon:"ti-database",
+    bian:["Core Banking Systems","Account Data Management","Financial Transaction Log","Operational Data Store"],
+    pci:["Req 3: Mandatory TDE (Transparent Data Encryption)","Req 3: Column-level encryption for PAN/CHD","Req 7: Row-Level Security by access role","Req 10: Native database auditing enabled"],
+    fr:["TDE with AES-256; keys in external HSM","Row-Level Security for multi-tenancy","Date-based partitioning for efficient retention","Synchronous replication to DR with RPO ≤ 0"],
+    nfr:["Transactional write latency p99 < 10ms","Availability ≥ 99.999% (5 nines)","RPO ≤ 0 (synchronous)","RTO ≤ 30 min with automatic failover"]
+  },
+  vault: {
+    name:"HSM / Key Vault", icon:"ti-lock",
+    bian:["Cryptographic Key Management","Security Assessment","Compliance Reporting","IT Security Management"],
+    pci:["Req 3.5: Key protection with dual-control access","Req 3.6: Documented key lifecycle procedures","Req 3.7: Annual rotation of KEK and DEK","Req 6: HSM in hardened and audited physical environment"],
+    fr:["FIPS 140-2 Level 3 or higher certified","Dual custodianship of master keys (M of N)","Automatic KEK/DEK rotation with zero downtime","PKCS#11 and KMIP API for service integration"],
+    nfr:["HSM availability ≥ 99.999%","Cryptographic operation latency < 5ms","Immutable audit trail of all key operations","Active-active geo-redundant cluster"]
+  },
+  tokenization: {
+    name:"Tokenization Engine", icon:"ti-replace",
+    bian:["Payment Token Management","Card Facility Management","Cryptographic Services"],
+    pci:["Req 3: Irreversible PAN tokenisation (format-preserving)","Req 3: PAN↔Token mapping vault in isolated zone","Req 4: Tokens in transit over standard channel without additional encryption","Req 10: Log of every tokenisation/detokenisation operation"],
+    fr:["Format-preserving tokenisation (FPE) for system compatibility","BIN-specific tokens per EMV Payment Tokenisation Spec","Detokenisation only in CDE with dual authentication","Multi-scheme support: Visa VTS, MC MDES, proprietary"],
+    nfr:["Tokenisation latency p99 < 20ms","Throughput ≥ 10,000 ops/s","Availability ≥ 99.999%","Token vault in isolated network micro-segment"]
+  },
+  datawarehouse: {
+    name:"Data Warehouse / Lake", icon:"ti-database-export",
+    bian:["Data Warehouse","Customer Analytics","Product Performance","Financial Reporting"],
+    pci:["Req 3: PAN masked (first 6, last 4) in analytics","Req 3: Test data anonymised; CHD prohibited in dev/test","Req 7: DW access only with justified analytical need","Req 10: Log of queries accessing sensitive data"],
+    fr:["Dynamic PII/CHD masking by role","Full data lineage from source to report","Physical separation of analytics and CDE environments","GDPR support: right to erasure and portability"],
+    nfr:["Nightly load SLA: data available by 06:00","Historical data retention per policy (min. 7 years)","Analytical query response p95 < 30s","Availability ≥ 99.9%"]
+  },
+  cache: {
+    name:"Distributed Cache", icon:"ti-stack",
+    bian:["Performance Optimization","Session State Management","Real-time Data Access"],
+    pci:["Req 3: Encryption of CHD data in cache with AES-256","Req 3: Maximum TTL for sensitive data: 15 minutes","Req 4: TLS 1.3 on client-to-cache communication","Req 2: Hardened configuration; no anonymous access"],
+    fr:["Mandatory encryption at rest and in transit","Configurable TTL by data type; CHD maximum 15 min","Redis cluster with replication and Sentinel","Eviction policy: volatile-ttl for sensitive data"],
+    nfr:["Read latency p99 < 1ms","Target hit rate ≥ 90%","Availability ≥ 99.99%","Automatic failover < 30s"]
+  },
+  siem: {
+    name:"SIEM / SOC", icon:"ti-eye",
+    bian:["Security Assessment","Compliance Reporting","Incident Reporting","Threat Assessment","IT Operations"],
+    pci:["Req 10.2: Real-time correlation of all CDE events","Req 10.3: NTP-synchronised timestamps on all logs","Req 10.7: Minimum 12-month retention; 3 months online","Req 11.5: FIM alerting on unauthorised changes"],
+    fr:["Event correlation with MITRE ATT&CK for banking","Automated incident response playbooks","Integration with threat intelligence (financial ISAC)","Real-time PCI compliance dashboard"],
+    nfr:["MTTD ≤ 24h for security incidents","MTTR ≤ 4h","12-month log retention with HMAC integrity","Ingestion ≥ 500k events/s"]
+  },
+  pam: {
+    name:"PAM / Privilege", icon:"ti-key",
+    bian:["Privileged Access Management","IT Security Management","Employee Access","Compliance Monitoring"],
+    pci:["Req 7: Privileged CDE access only with documented justification","Req 8: Mandatory MFA for all privileged accounts","Req 8: Privileged sessions recorded and audited","Req 10: Log of every privileged account action"],
+    fr:["Privileged password vault with automatic rotation","Privileged session recording (video + keystroke)","Just-in-time access with two-person approval","Break-glass with automatic alert to CISO"],
+    nfr:["JIT approval time < 15 min","Session recording retention ≥ 12 months","Availability ≥ 99.99%","Automatic password rotation after each use"]
+  },
+  dlp: {
+    name:"DLP / CASB", icon:"ti-shield-half",
+    bian:["Data Loss Prevention","Information Security","Compliance Monitoring","Channel Security"],
+    pci:["Req 3: Detection and blocking of plaintext PAN on any channel","Req 4: Block sending CHD via unauthorised email/chat/upload","Req 10: Alert and log every detected exfiltration attempt"],
+    fr:["Content inspection on endpoints, email, web and cloud","Fingerprinting of sensitive financial documents","Real-time blocking of PAN/CHD exfiltration","CASB integration for shadow IT and corporate SaaS"],
+    nfr:["Packet inspection latency < 5ms","False positive rate < 0.1%","Coverage: 100% of managed endpoints","SOC alerts within < 1 min of detection"]
+  },
+  vuln: {
+    name:"Vuln. Management", icon:"ti-bug",
+    bian:["Vulnerability Assessment","IT Security Management","Patch Management","Risk Assessment"],
+    pci:["Req 6: Critical patches (CVSSv3 ≥ 9.0) within ≤ 30 days","Req 11.2: Weekly internal vulnerability scanning","Req 11.3: Quarterly external ASV on all CDE IPs","Req 11.4: Annual pen test (network + CDE web applications)"],
+    fr:["Complete CDE asset inventory (integrated CMDB)","Vulnerability prioritisation by contextual risk (CVSS + EPSS)","Automated SBOM in CI/CD pipeline","Remediation tracking with SLA by criticality"],
+    nfr:["CVSSv3 ≥ 9.0 remediation ≤ 30 days","CVSSv3 7.0–8.9 ≤ 60 days","Scan coverage: 100% of CDE assets","Full scan time < 4h"]
+  },
+  audit: {
+    name:"Audit & Compliance", icon:"ti-clipboard-check",
+    bian:["Compliance Reporting","Regulatory Compliance","Internal Audit","Financial Compliance"],
+    pci:["Req 10.5: Log protection against modification (write-once)","Req 10.6: Daily review of CDE security logs","Req 10.7: 12-month retention; 3 months accessible online","Req 12: Evidence for QSA during annual certification process"],
+    fr:["HMAC-signed logs to guarantee integrity","Automated daily log review with anomaly alerts","Automatic PCI audit evidence generation","Non-conformity management with remediation plan"],
+    nfr:["Logs online for minimum 3 months","Offline archiving for additional 9 months","Historical log retrieval time < 24h","Audit module availability ≥ 99.9%"]
+  },
+  k8s: {
+    name:"Kubernetes / CaaS", icon:"ti-container",
+    bian:["Container Platform Management","IT Infrastructure","Application Deployment","Service Mesh"],
+    pci:["Req 2: CIS Kubernetes Benchmark applied in hardening","Req 6: Images scanned with SAST before deployment","Req 6: Separate namespaces for CDE components","Req 10: Kubernetes API Server audit logs enabled"],
+    fr:["Dedicated namespaces and Network Policies for CDE","Secrets encrypted with external solution (Vault / KMS)","Images signed with Sigstore/Notary v2","Service mesh with mTLS (Istio/Linkerd) between pods"],
+    nfr:["Control plane availability ≥ 99.99%","Pod RTO ≤ 30s (rolling update)","Image scanning in < 5 min in CI/CD pipeline","Zero privileged containers in CDE namespace"]
+  },
+  network: {
+    name:"Network Segmentation", icon:"ti-network",
+    bian:["Network Operations Management","IT Infrastructure","Security Zone Management"],
+    pci:["Req 1.2: Up-to-date network diagram with all CHD flows","Req 1.3: Segmentation isolating CDE from public and internal networks","Req 1.4: Firewall rule review every 6 months","Req 2: No direct routes between internet and CDE"],
+    fr:["Micro-segmentation between all BIAN domains","Zero Trust Network Access (ZTNA) for remote access","IDS/IPS on all CDE segments with updated signatures","Zones: Internet DMZ → App Tier → Data Tier (no zone skipping)"],
+    nfr:["NGFW throughput ≥ 40 Gbps","Firewall-added latency < 1ms","Biannual rule review with approval ticket","100% of inter-zone CDE traffic inspected"]
+  },
+  backup: {
+    name:"Backup & DR", icon:"ti-database-import",
+    bian:["Business Continuity Management","Disaster Recovery","Data Backup","IT Operations"],
+    pci:["Req 3: CHD backups encrypted with AES-256 and separate key from production","Req 9: Backup media with controlled physical access","Req 12: DR plan documented and tested annually"],
+    fr:["Full daily backup + hourly incrementals","Backup encryption with separate key managed in HSM","Monthly restoration test with documented time","Active-passive DR site with replicated synchronisation"],
+    nfr:["RTO ≤ 4h (DORA regulation)","RPO ≤ 15 min","Successful DR test at least once per year","Encryption verified on 100% of CHD backups"]
+  },
+  observability: {
+    name:"Observability", icon:"ti-activity",
+    bian:["IT Operations Management","Performance Monitoring","Service Level Management","Incident Reporting"],
+    pci:["Req 10: Security metrics integrated into observability platform","Req 10.6: Automatic alerts when security thresholds exceeded","Req 11: Correlation of network metrics with security events"],
+    fr:["OpenTelemetry (OTel) as instrumentation standard","End-to-end distributed tracing across all BIAN services","SLA dashboards per service domain with SLO breach alerts","Trace correlation with SIEM security events"],
+    nfr:["Metrics retention: 15 days full resolution, 1 year downsampled","Trace retention: 7 days full, 30 days sampled","Telemetry ingestion latency < 2s","Platform availability ≥ 99.9%"]
+  }
+};
+
+function showDetail(el, id) {
+  var d = details[id];
+  if (!d) return;
+  document.querySelectorAll('.service-card').forEach(function(c){ c.classList.remove('selected'); });
+  el.classList.add('selected');
+  document.getElementById('det-icon').className = 'ti ' + d.icon;
+  document.getElementById('det-name').textContent = d.name;
+  ['bian','pci','fr','nfr'].forEach(function(key){
+    var ul = document.getElementById('det-'+key);
+    ul.innerHTML = d[key].map(function(i){ return '<li>'+i+'</li>'; }).join('');
+  });
+  var panel = document.getElementById('detail-panel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('detail-panel').classList.remove('visible');
+}
+</script>
+</body>
+</html>
