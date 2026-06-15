@@ -29,5 +29,8 @@ La **seguridad es transversal**, no un añadido: el SIEM, el PAM, el DLP y la ge
 Si quieres profundizar en algún área concreta —el modelo de red segmentado del CDE, el diseño del pipeline CI/CD con SAST/DAST, el flujo de tokenización PAN→Token, o el modelo de datos de auditoría— puedo desarrollarlo en detalle.
 
 
-
+Español
 https://htmlpreview.github.io/?https://github.com/mrcheidel/BIAN-Architecture/blob/main/bian_pci_reference_architecture_v2.html
+
+English
+https://htmlpreview.github.io/?https://github.com/mrcheidel/BIAN-Architecture/blob/main/bian_pci_reference_architecture_v3.html
