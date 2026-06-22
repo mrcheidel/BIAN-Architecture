@@ -1,32 +1,31 @@
-# BIAN-Architecture
+# Banking Architecture
+## Banking Reference Architecture based on BIAN + PCI DSS v4.0
 
-## Arquitectura de referencia bancaria BIAN + PCI DSS v4.0
+The architecture is organized into **6 layers**, aligned with the **BIAN v12 framework** and designed to ensure that the Cardholder Data Environment (CDE) fully complies with **PCI DSS requirements**. Click on any component in the diagram to explore its associated controls, compliance requirements, and SLA definitions.
 
-La arquitectura está organizada en **6 capas** alineadas con el modelo BIAN v12 y diseñadas para que el Cardholder Data Environment (CDE) cumpla íntegramente con PCI DSS. Haz clic sobre cualquier componente en el diagrama para ver sus detalles de controles, requisitos y SLA.
+### How to read the widget
 
-### Cómo leer el widget
+The main diagram maps each component to its corresponding BIAN domain and shows which **PCI DSS** requirement each component is responsible for addressing. Components highlighted in red belong to the CDE; components shown in green represent adjacent regulatory controls (GDPR, Basel III, AMLD6).
 
-El diagrama principal mapea cada componente a su dominio BIAN y muestra qué requisito PCI DSS es responsable de cubrir. Los badges en rojo son componentes dentro del CDE; en verde, controles normativos adyacentes (GDPR, Basel III, AMLD6).
+The four tabs cover:
 
-Las cuatro pestañas cubren:
+**Architecture** — the interactive layered view, spanning from customer-facing channels down to infrastructure, including the 8 core BIAN Service Domains supporting central banking business operations.
 
-**Arquitectura** — la vista en capas interactiva, desde canales hasta infraestructura, pasando por los 8 Service Domains BIAN de negocio bancario central.
+**Functional Requirements** — 25 functional requirements grouped by domain: payments, identity management, security, fraud/AML, integration, and auditability. Each requirement includes its priority level (CRITICAL / HIGH / MEDIUM) and associated regulatory reference.
 
-**Req. funcionales** — 25 requisitos funcionales agrupados por dominio: pagos, identidad, seguridad, fraude/AML, integración y auditoría, cada uno con su prioridad (CRÍTICO / ALTO / MEDIO) y referencia normativa.
+**NFR** — 19 non-functional requirements defined with precise and measurable metrics: latency targets (p95/p99), throughput (TPS), availability (99.99%), RTO/RPO objectives, MTTD/MTTR indicators, and test coverage requirements.
 
-**NFR** — 19 requisitos no funcionales con métricas precisas y medibles: latencias (p95/p99), throughput (TPS), disponibilidad (99.99%), RTO/RPO, MTTD/MTTR y cobertura de pruebas.
+**PCI DSS** — the 12 requirements defined by the PCI DSS v4.0.1 standard, decomposed into specific technical and operational controls, classified by criticality level (Mandatory / Critical / Standard).
 
-**PCI DSS** — los 12 requisitos del estándar v4.0.1 desglosados en controles concretos con su nivel de criticidad (Obligatorio / Crítico / Estándar).
+### Key design principles
 
-### Principios de diseño clave
+The CDE is isolated and strongly segmented: the card data perimeter is strictly contained between the tokenization engine, the HSM/Key Vault, and the OLTP databases protected with TDE (Transparent Data Encryption). Any system operating outside this perimeter works exclusively with tokens, never with real PAN (Primary Account Number) data.
 
-El **CDE está contenido y segmentado**: el perímetro de datos de tarjeta queda delimitado entre el tokenization engine, el HSM/Key Vault y las bases de datos OLTP con TDE. Todo lo que salga de ese perímetro trabaja exclusivamente con tokens, nunca con PANs reales.
+The architecture follows an event-driven and API-first approach, aligned with BIAN v12: each Service Domain exposes its BOM (Behavior Qualification Model) through REST APIs, using OpenAPI 3.1 specifications and ISO 20022 messaging standards for interbank communication. This significantly simplifies the cardholder data flow auditability required under PCI DSS Requirement 1.
 
-La arquitectura es **event-driven y API-first** conforme a BIAN v12: cada Service Domain expone su BOM (Behavior Qualification Model) como API REST con OpenAPI 3.1 e ISO 20022 para mensajería interbancaria, lo que facilita la auditoría de flujos de datos de tarjeta exigida en PCI Req 1.
+**Security is implemented as a cross-cutting concern, not as an add-on: SIEM, PAM, DLP**, and **vulnerability management** operate as vertical security layers spanning the entire architecture rather than isolated standalone services.
 
-La **seguridad es transversal**, no un añadido: el SIEM, el PAM, el DLP y la gestión de vulnerabilidades son capas que atraviesan verticalmente toda la arquitectura, no servicios aislados.
-
-Si quieres profundizar en algún área concreta —el modelo de red segmentado del CDE, el diseño del pipeline CI/CD con SAST/DAST, el flujo de tokenización PAN→Token, o el modelo de datos de auditoría— puedo desarrollarlo en detalle.
+If you would like to explore any area in more detail — such as the segmented CDE network model, the CI/CD pipeline design with SAST/DAST controls, the **PAN → Token tokenization flow**, or the audit data model architecture — I can expand each area further.
 
 English
 https://htmlpreview.github.io/?https://github.com/mrcheidel/BIAN-Architecture/blob/main/bian_pci_reference_architecture_v3.html
