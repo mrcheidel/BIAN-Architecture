@@ -27,5 +27,5 @@ The architecture follows an event-driven and API-first approach, aligned with BI
 
 If you would like to explore any area in more detail — such as the segmented CDE network model, the CI/CD pipeline design with SAST/DAST controls, the **PAN → Token tokenization flow**, or the audit data model architecture — I can expand each area further.
 
-English
-https://htmlpreview.github.io/?https://github.com/mrcheidel/BIAN-Architecture/blob/main/bian_pci_reference_architecture_v3.html
+Preview the Diagram Landscape
+https://htmlpreview.github.io/?https://github.com/mrcheidel/BIAN-Architecture/blob/main/reference.html
